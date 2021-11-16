@@ -1,22 +1,29 @@
 package main
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
 
-var Version string = "/v1"
+type Person struct {
+	// 1. Create a struct for storing CSV lines and annotate it with JSON struct field tags
+	Nome  string `json:"nome"`
+	Email string `json:"email"`
+	Idade int    `json:"idade"`
+}
 
 func main() {
 
 	route := mux.NewRouter()
 
-	route.HandleFunc(Version+"/file", Loadfile)
+	route.HandleFunc("/", Loadfile)
 
 	fmt.Println("Server started at port 9000")
 	err := http.ListenAndServe(":9000", route)
@@ -27,16 +34,49 @@ func main() {
 }
 
 func Loadfile(w http.ResponseWriter, r *http.Request) {
-	w.Write(ReadFile("file.json"))
+
+	w.Write(ReadFile("file.csv"))
 }
 
 func ReadFile(dataJSON string) []byte {
 	data := loadData(dataJSON)
-	return []byte(data)
+
+	result := createJSONList(data)
+
+	jsonData, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return []byte(jsonData)
 
 }
 
-func loadData(dataJSON string) []byte {
+func createJSONList(data [][]string) []Person {
+	// convert csv lines to array of structs
+	var person []Person
+	for i, line := range data {
+		if i > 0 { // omit header line
+			var rec Person
+			for j, field := range line {
+				if j == 0 {
+					rec.Nome = field
+				} else if j == 1 {
+					rec.Email = field
+				} else if j == 2 {
+					var err error
+					rec.Idade, err = strconv.Atoi(field)
+					if err != nil {
+						continue
+					}
+				}
+			}
+			person = append(person, rec)
+		}
+	}
+	return person
+}
+
+func loadData(dataJSON string) [][]string {
 	jsonFile, err := os.Open(dataJSON)
 
 	if err != nil {
@@ -44,10 +84,10 @@ func loadData(dataJSON string) []byte {
 	}
 	defer jsonFile.Close()
 
-	data, err := ioutil.ReadAll(jsonFile)
-
+	csvReader := csv.NewReader(jsonFile)
+	data, err := csvReader.ReadAll()
 	if err != nil {
-		log.Println("Not Read File", err.Error())
+		log.Fatal(err)
 	}
 
 	return data
