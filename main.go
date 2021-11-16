@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
-	"github.com/Paulo-Lopes-Estevaogochallenge_web/loadfile"
 	"github.com/gorilla/mux"
 )
 
@@ -26,5 +27,29 @@ func main() {
 }
 
 func Loadfile(w http.ResponseWriter, r *http.Request) {
-	w.Write(loadfile.ReadFile("file.json"))
+	w.Write(ReadFile("file.json"))
+}
+
+func ReadFile(dataJSON string) []byte {
+	data := loadData(dataJSON)
+	return []byte(data)
+
+}
+
+func loadData(dataJSON string) []byte {
+	jsonFile, err := os.Open(dataJSON)
+
+	if err != nil {
+		log.Println("Not found File", err.Error())
+	}
+	defer jsonFile.Close()
+
+	data, err := ioutil.ReadAll(jsonFile)
+
+	if err != nil {
+		log.Println("Not Read File", err.Error())
+	}
+
+	return data
+
 }
